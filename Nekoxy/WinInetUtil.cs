@@ -71,6 +71,25 @@ namespace Nekoxy
                 : null;
         }
 
+        internal static string GetSystemHttpsProxyHost()
+            => GetSystemHttpsProxy()?.Split(':')[0];
+
+        internal static int GetSystemHttpsProxyPort()
+            => int.Parse(GetSystemHttpsProxy()?.Split(':')[1] ?? "0");
+
+        private static string GetSystemHttpsProxy()
+        {
+            var proxyConfig = WinHttpGetIEProxyConfigForCurrentUser();
+            if (proxyConfig.Proxy == null) return null;
+
+            var configs = proxyConfig.Proxy.Split(';');
+            if (!proxyConfig.Proxy.Contains("=")) return configs[0];
+
+            return configs.Any(x => x.StartsWith("https="))
+                ? new string(configs.First(x => x.StartsWith("https=")).Replace("https=", "").ToArray())
+                : null;
+        }
+
         /// <summary>
         /// システムプロキシのhttpプロキシ設定をNekoxyに置換したプロキシ設定を取得。
         /// </summary>
@@ -78,16 +97,14 @@ namespace Nekoxy
         /// <returns>編集後プロキシ設定</returns>
         private static string GetProxyConfig(int listeningPort)
         {
-            var localProxy = "http=localhost:" + listeningPort;
+            var localProxy = "http=localhost:" + listeningPort + ";https=localhost:" + listeningPort;
             var proxyConfig = WinHttpGetIEProxyConfigForCurrentUser();
             if (string.IsNullOrWhiteSpace(proxyConfig.Proxy)) return localProxy;
 
             var configs = proxyConfig.Proxy.Split(';');
-            if (!proxyConfig.Proxy.Contains("=")) return localProxy + ";https=" + configs[0] + ";ftp=" + configs[0];
+            if (!proxyConfig.Proxy.Contains("=")) return localProxy + ";ftp=" + configs[0];
 
-            return configs.Any(x => x.StartsWith("http="))
-                ? string.Join(";", configs.Select(x => x.StartsWith("http=") ? localProxy : x))
-                : localProxy + ";" + string.Join(";", configs);
+            return localProxy + ";" + string.Join(";", configs.Where(x => !x.StartsWith("http=") && !x.StartsWith("https=")));
         }
 
         /// <summary>
