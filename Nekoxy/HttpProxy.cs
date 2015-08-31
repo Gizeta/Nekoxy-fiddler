@@ -131,11 +131,7 @@ namespace Nekoxy
 
         private static void raiseAfterSessionComplete(Fiddler.Session session)
         {
-            InvokeAfterSessionComplete(new Session
-            {
-                Request = new HttpRequest(session.GenerateRequestLine(), session.RequestHeaders.GenerateHeaders(), session.RequestBody),
-                Response = new HttpResponse(session.GenerateStatusLine(), session.ResponseHeaders.GenerateHeaders(), session.ResponseBody)
-            });
+            InvokeAfterSessionComplete(session.ToNekoxySession());
         }
 
         private static void raiseRequestHeadersAvailable(Fiddler.Session session)

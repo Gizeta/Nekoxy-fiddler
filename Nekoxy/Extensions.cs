@@ -67,8 +67,20 @@ namespace Nekoxy
         private static readonly Encoding defaultEncoding = Encoding.ASCII;
         private static readonly Regex charsetRegex = new Regex("charset=([\\w-]*)", RegexOptions.Compiled);
         private static readonly Regex mimeTypeRegex = new Regex("^([^;]+)", RegexOptions.Compiled);
+    }
 
-        public static HttpRequestLine GenerateRequestLine(this Fiddler.Session session)
+    public static class ProxyExtensions
+    {
+        public static Session ToNekoxySession(this Fiddler.Session session)
+        {
+            return new Session
+            {
+                Request = new HttpRequest(session.GenerateRequestLine(), session.RequestHeaders.GenerateHeaders(), session.RequestBody),
+                Response = new HttpResponse(session.GenerateStatusLine(), session.ResponseHeaders.GenerateHeaders(), session.ResponseBody)
+            };
+        }
+
+        internal static HttpRequestLine GenerateRequestLine(this Fiddler.Session session)
         {
             var constructor = typeof(HttpRequestLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(HttpSocket) }, null);
             var instance = (HttpRequestLine)constructor.Invoke(new object[] { new HttpSocket(SocketMocker.GetFakeRequestSocket()) });
@@ -80,7 +92,7 @@ namespace Nekoxy
             return instance;
         }
 
-        public static HttpStatusLine GenerateStatusLine(this Fiddler.Session session)
+        internal static HttpStatusLine GenerateStatusLine(this Fiddler.Session session)
         {
             var constructor = typeof(HttpStatusLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(HttpSocket) }, null);
             var instance = (HttpStatusLine)constructor.Invoke(new object[] { new HttpSocket(SocketMocker.GetFakeResponseSocket()) });
@@ -92,7 +104,7 @@ namespace Nekoxy
             return instance;
         }
 
-        public static HttpHeaders GenerateHeaders(this Fiddler.HTTPHeaders httpHeaders)
+        internal static HttpHeaders GenerateHeaders(this Fiddler.HTTPHeaders httpHeaders)
         {
             var headers = new HttpHeaders();
 
