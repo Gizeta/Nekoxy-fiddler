@@ -64,11 +64,11 @@ namespace Nekoxy
             var message = Encoding.ASCII.GetString(buffer, 0, length);
             if (message == "request")
             {
-                socket.Send(Encoding.ASCII.GetBytes("FAKE / HTTP/1.1\r\n"));
+                socket.Send(Encoding.ASCII.GetBytes("GET http://www.dmm.com/ HTTP/1.1\r\n"));
             }
             else if (message == "response")
             {
-                socket.Send(Encoding.ASCII.GetBytes("HTTP/1.1 200 FAKE\r\n"));
+                socket.Send(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n"));
             }
 
             socket.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(receiveMessage), socket);
