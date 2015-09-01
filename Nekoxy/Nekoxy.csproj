@@ -34,6 +34,19 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BCMakeCert, Version=2.0.7.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>DependentAssemblies\BCMakeCert.dll</HintPath>
+    </Reference>
+    <Reference Include="CertMaker, Version=4.5.0.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>DependentAssemblies\CertMaker.dll</HintPath>
+    </Reference>
+    <Reference Include="FiddlerCore4, Version=4.5.1.0, Culture=neutral, PublicKeyToken=67cb91587178ac5a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>DependentAssemblies\FiddlerCore4.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
       <Private>True</Private>
@@ -52,6 +65,7 @@
     <Compile Include="ProxyConfig.cs" />
     <Compile Include="ProxyConfigType.cs" />
     <Compile Include="Session.cs" />
+    <Compile Include="SocketMocker.cs" />
     <Compile Include="TransparentProxyLogic.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Win32\NativeMethods.cs" />
@@ -64,6 +78,12 @@
     <None Include="DependentAssemblies\TrotiNet.dll" />
     <None Include="DependentAssemblies\TrotiNet.xml" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DependentAssemblies\FiddlerCore4.dll" />
+    <None Include="DependentAssemblies\FiddlerCore4.xml" />
+    <None Include="DependentAssemblies\BCMakeCert.dll" />
+    <None Include="DependentAssemblies\CertMaker.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

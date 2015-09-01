@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TrotiNet;
+using Fiddler;
 
 namespace Nekoxy
 {
@@ -12,8 +13,6 @@ namespace Nekoxy
     /// </summary>
     public static class HttpProxy
     {
-        private static TcpServer server;
-
         /// <summary>
         /// HTTPレスポンスをプロキシ クライアントに送信完了した際に発生。
         /// </summary>
@@ -36,14 +35,14 @@ namespace Nekoxy
         /// </summary>
         public static ProxyConfig UpstreamProxyConfig
         {
-            get { return TransparentProxyLogic.UpstreamProxyConfig; }
-            set { TransparentProxyLogic.UpstreamProxyConfig = value; }
+            get;
+            set;
         }
 
         /// <summary>
         /// プロキシサーバーが Listening 中かどうかを取得。
         /// </summary>
-        public static bool IsInListening => server != null && server.IsListening;
+        public static bool IsInListening => FiddlerApplication.IsStarted();
 
         /// <summary>
         /// 指定ポートで Listening を開始する。
@@ -54,21 +53,21 @@ namespace Nekoxy
         /// <param name="isSetProxyInProcess">trueの場合、プロセス内IEプロキシの設定を実施し、HTTP通信をNekoxyに向ける。既定true。</param>
         public static void Startup(int listeningPort, bool useIpV6 = false, bool isSetProxyInProcess = true)
         {
-            if (server != null) throw new InvalidOperationException("Calling Startup() twice without calling Shutdown() is not permitted.");
+            if (IsInListening) throw new InvalidOperationException("Calling Startup() twice without calling Shutdown() is not permitted.");
 
-            TransparentProxyLogic.AfterSessionComplete += InvokeAfterSessionComplete;
-            TransparentProxyLogic.AfterReadRequestHeaders += InvokeAfterReadRequestHeaders;
-            TransparentProxyLogic.AfterReadResponseHeaders += InvokeAfterReadResponseHeaders;
+            FiddlerApplication.BeforeRequest += setUpstreamProxyHandler;
+            FiddlerApplication.AfterSessionComplete += raiseAfterSessionComplete;
+            FiddlerApplication.RequestHeadersAvailable += raiseRequestHeadersAvailable;
+            FiddlerApplication.ResponseHeadersAvailable += raiseResponseHeadersAvailable;
+
             ListeningPort = listeningPort;
             try
             {
                 if (isSetProxyInProcess)
                     WinInetUtil.SetProxyInProcessForNekoxy(listeningPort);
 
-                server = new TcpServer(listeningPort, useIpV6);
-                server.Start(TransparentProxyLogic.CreateProxy);
-                server.InitListenFinished.WaitOne();
-                if (server.InitListenException != null) throw server.InitListenException;
+                FiddlerApplication.Startup(listeningPort, FiddlerCoreStartupFlags.ChainToUpstreamGateway);
+                SocketMocker.Startup(useIpV6);
             }
             catch (Exception)
             {
@@ -82,11 +81,13 @@ namespace Nekoxy
         /// </summary>
         public static void Shutdown()
         {
-            TransparentProxyLogic.AfterSessionComplete -= InvokeAfterSessionComplete;
-            TransparentProxyLogic.AfterReadRequestHeaders -= InvokeAfterReadRequestHeaders;
-            TransparentProxyLogic.AfterReadResponseHeaders -= InvokeAfterReadResponseHeaders;
-            server?.Stop();
-            server = null;
+            FiddlerApplication.BeforeRequest -= setUpstreamProxyHandler;
+            FiddlerApplication.AfterSessionComplete -= raiseAfterSessionComplete;
+            FiddlerApplication.RequestHeadersAvailable -= raiseRequestHeadersAvailable;
+            FiddlerApplication.ResponseHeadersAvailable -= raiseResponseHeadersAvailable;
+
+            FiddlerApplication.Shutdown();
+            SocketMocker.Shutdown();
         }
 
         internal static int ListeningPort { get; set; }
@@ -99,5 +100,48 @@ namespace Nekoxy
 
         private static void InvokeAfterReadResponseHeaders(HttpResponse response)
             => AfterReadResponseHeaders?.Invoke(response);
+
+        private static void setUpstreamProxyHandler(Fiddler.Session requestingSession)
+        {
+            if (UpstreamProxyConfig.Type == ProxyConfigType.DirectAccess) return;
+
+            string host = "";
+            int port = 0;
+            if (UpstreamProxyConfig.Type == ProxyConfigType.SpecificProxy)
+            {
+                host = UpstreamProxyConfig.SpecificProxyHost;
+                port = UpstreamProxyConfig.SpecificProxyPort;
+            }
+            else
+            {
+                host = requestingSession.isHTTPS || requestingSession.port == 443 ? WinInetUtil.GetSystemHttpsProxyHost() : WinInetUtil.GetSystemHttpProxyHost();
+                port = requestingSession.isHTTPS || requestingSession.port == 443 ? WinInetUtil.GetSystemHttpsProxyPort() : WinInetUtil.GetSystemHttpProxyPort();
+
+                if (port == ListeningPort && host.IsLoopbackHost())
+                    return;
+            }
+
+            if (string.IsNullOrEmpty(host))
+                return;
+
+            var gateway = host.Contains(":") ? string.Format("[{0}]:{1}", host, port) : string.Format("{0}:{1}", host, port);
+
+            requestingSession["X-OverrideGateway"] = gateway;
+        }
+
+        private static void raiseAfterSessionComplete(Fiddler.Session session)
+        {
+            InvokeAfterSessionComplete(session.ToNekoxySession());
+        }
+
+        private static void raiseRequestHeadersAvailable(Fiddler.Session session)
+        {
+            InvokeAfterReadRequestHeaders(new HttpRequest(session.GenerateRequestLine(), session.RequestHeaders.GenerateHeaders(), null));
+        }
+
+        private static void raiseResponseHeadersAvailable(Fiddler.Session session)
+        {
+            InvokeAfterReadResponseHeaders(new HttpResponse(session.GenerateStatusLine(), session.ResponseHeaders.GenerateHeaders(), null));
+        }
     }
 }
