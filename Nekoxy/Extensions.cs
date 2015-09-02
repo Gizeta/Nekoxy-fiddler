@@ -82,24 +82,16 @@ namespace Nekoxy
 
         internal static HttpRequestLine GenerateRequestLine(this Fiddler.Session session)
         {
-            var constructor = typeof(HttpRequestLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(HttpSocket) }, null);
-            var instance = (HttpRequestLine)constructor.Invoke(new object[] { new HttpSocket(SocketMocker.GetFakeRequestSocket()) });
-
-            instance.Method = session.RequestMethod;
-            instance.ProtocolVersion = session.RequestHeaders.HTTPVersion.Replace("HTTP/", "");
-            instance.URI = session.PathAndQuery;
+            var constructor = typeof(HttpRequestLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string) }, null);
+            var instance = (HttpRequestLine)constructor.Invoke(new object[] { string.Format("{0} {1} {2}\r\n", session.RequestMethod, session.PathAndQuery, session.RequestHeaders.HTTPVersion) });
 
             return instance;
         }
 
         internal static HttpStatusLine GenerateStatusLine(this Fiddler.Session session)
         {
-            var constructor = typeof(HttpStatusLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(HttpSocket) }, null);
-            var instance = (HttpStatusLine)constructor.Invoke(new object[] { new HttpSocket(SocketMocker.GetFakeResponseSocket()) });
-
-            typeof(HttpStatusLine).GetProperty("ProtocolVersion").SetValue(instance, session.ResponseHeaders.HTTPVersion.Replace("HTTP/", ""));
-            typeof(HttpStatusLine).GetProperty("StatusCode").SetValue(instance, session.responseCode);
-            typeof(HttpStatusLine).GetField("StatusLine").SetValue(instance, session.ResponseHeaders.HTTPVersion + " " + session.ResponseHeaders.HTTPResponseStatus);
+            var constructor = typeof(HttpStatusLine).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(string) }, null);
+            var instance = (HttpStatusLine)constructor.Invoke(new object[] { string.Format("{0} {1}\r\n", session.ResponseHeaders.HTTPVersion, session.ResponseHeaders.HTTPResponseStatus) });
 
             return instance;
         }

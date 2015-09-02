@@ -67,7 +67,6 @@ namespace Nekoxy
                     WinInetUtil.SetProxyInProcessForNekoxy(listeningPort);
 
                 FiddlerApplication.Startup(listeningPort, FiddlerCoreStartupFlags.ChainToUpstreamGateway);
-                SocketMocker.Startup(useIpV6);
             }
             catch (Exception)
             {
@@ -87,7 +86,6 @@ namespace Nekoxy
             FiddlerApplication.ResponseHeadersAvailable -= raiseResponseHeadersAvailable;
 
             FiddlerApplication.Shutdown();
-            SocketMocker.Shutdown();
         }
 
         internal static int ListeningPort { get; set; }

@@ -65,7 +65,6 @@
     <Compile Include="ProxyConfig.cs" />
     <Compile Include="ProxyConfigType.cs" />
     <Compile Include="Session.cs" />
-    <Compile Include="SocketMocker.cs" />
     <Compile Include="TransparentProxyLogic.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Win32\NativeMethods.cs" />
