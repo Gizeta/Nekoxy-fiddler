@@ -44,6 +44,11 @@ namespace Nekoxy
         /// </summary>
         public static bool IsInListening => FiddlerApplication.IsStarted();
 
+        private static string httpGateway = "";
+        private static string httpsGateway = "";
+        private static bool useHttpGateway = false;
+        private static bool useHttpsGateway = false;
+
         /// <summary>
         /// 指定ポートで Listening を開始する。
         /// Shutdown() を呼び出さずに2回目の Startup() を呼び出した場合、InvalidOperationException が発生する。
@@ -66,6 +71,7 @@ namespace Nekoxy
                 if (isSetProxyInProcess)
                     WinInetUtil.SetProxyInProcessForNekoxy(listeningPort);
 
+                readGatewayConfig();
                 FiddlerApplication.Startup(listeningPort, FiddlerCoreStartupFlags.ChainToUpstreamGateway);
             }
             catch (Exception)
@@ -99,32 +105,63 @@ namespace Nekoxy
         private static void InvokeAfterReadResponseHeaders(HttpResponse response)
             => AfterReadResponseHeaders?.Invoke(response);
 
-        private static void setUpstreamProxyHandler(Fiddler.Session requestingSession)
+        private static void readGatewayConfig()
         {
-            if (UpstreamProxyConfig.Type == ProxyConfigType.DirectAccess) return;
+            if (UpstreamProxyConfig.Type == ProxyConfigType.DirectAccess)
+            {
+                useHttpGateway = false;
+                useHttpsGateway = false;
+                return;
+            }
 
-            string host = "";
-            int port = 0;
+            string httpHost = "";
+            int httpPort = 0;
+            string httpsHost = "";
+            int httpsPort = 0;
             if (UpstreamProxyConfig.Type == ProxyConfigType.SpecificProxy)
             {
-                host = UpstreamProxyConfig.SpecificProxyHost;
-                port = UpstreamProxyConfig.SpecificProxyPort;
+                httpHost = UpstreamProxyConfig.SpecificProxyHost;
+                httpPort = UpstreamProxyConfig.SpecificProxyPort;
+                httpsHost = httpHost;
+                httpsPort = httpPort;
             }
             else
             {
-                host = requestingSession.isHTTPS || requestingSession.port == 443 ? WinInetUtil.GetSystemHttpsProxyHost() : WinInetUtil.GetSystemHttpProxyHost();
-                port = requestingSession.isHTTPS || requestingSession.port == 443 ? WinInetUtil.GetSystemHttpsProxyPort() : WinInetUtil.GetSystemHttpProxyPort();
+                httpHost = WinInetUtil.GetSystemHttpProxyHost();
+                httpPort = WinInetUtil.GetSystemHttpProxyPort();
+                if (httpPort == ListeningPort && httpHost.IsLoopbackHost())
+                {
+                    httpHost = "";
+                }
 
-                if (port == ListeningPort && host.IsLoopbackHost())
-                    return;
+                httpsHost = WinInetUtil.GetSystemHttpsProxyHost();
+                httpsPort = WinInetUtil.GetSystemHttpsProxyPort();
+                if (httpsPort == ListeningPort && httpsHost.IsLoopbackHost())
+                {
+                    httpsHost = "";
+                }
             }
 
-            if (string.IsNullOrEmpty(host))
+            useHttpGateway = !string.IsNullOrEmpty(httpHost);
+            useHttpsGateway = !string.IsNullOrEmpty(httpsHost);
+
+            httpGateway = httpHost.Contains(":") ? string.Format("[{0}]:{1}", httpHost, httpPort) : string.Format("{0}:{1}", httpHost, httpPort);
+            httpsGateway = httpsHost.Contains(":") ? string.Format("[{0}]:{1}", httpsHost, httpsPort) : string.Format("{0}:{1}", httpsHost, httpsPort);
+        }
+
+        private static void setUpstreamProxyHandler(Fiddler.Session requestingSession)
+        {
+            if (requestingSession.isHTTPS || requestingSession.port == 443)
+            {
+                if(useHttpsGateway)
+                    requestingSession["X-OverrideGateway"] = httpsGateway;
                 return;
+            }
 
-            var gateway = host.Contains(":") ? string.Format("[{0}]:{1}", host, port) : string.Format("{0}:{1}", host, port);
-
-            requestingSession["X-OverrideGateway"] = gateway;
+            if(useHttpGateway)
+            {
+                requestingSession["X-OverrideGateway"] = httpGateway;
+            }
         }
 
         private static void raiseAfterSessionComplete(Fiddler.Session session)
