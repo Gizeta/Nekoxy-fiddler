@@ -73,6 +73,7 @@ namespace Nekoxy
     {
         public static Session ToNekoxySession(this Fiddler.Session session)
         {
+            session.utilDecodeResponse();
             return new Session
             {
                 Request = new HttpRequest(session.GenerateRequestLine(), session.RequestHeaders.GenerateHeaders(), session.RequestBody),
