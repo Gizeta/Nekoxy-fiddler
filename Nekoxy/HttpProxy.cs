@@ -145,8 +145,10 @@ namespace Nekoxy
             useHttpGateway = !string.IsNullOrEmpty(httpHost);
             useHttpsGateway = !string.IsNullOrEmpty(httpsHost);
 
-            httpGateway = httpHost.Contains(":") ? string.Format("[{0}]:{1}", httpHost, httpPort) : string.Format("{0}:{1}", httpHost, httpPort);
-            httpsGateway = httpsHost.Contains(":") ? string.Format("[{0}]:{1}", httpsHost, httpsPort) : string.Format("{0}:{1}", httpsHost, httpsPort);
+            if (useHttpGateway)
+                httpGateway = httpHost.Contains(":") ? string.Format("[{0}]:{1}", httpHost, httpPort) : string.Format("{0}:{1}", httpHost, httpPort);
+            if (useHttpsGateway)
+                httpsGateway = httpsHost.Contains(":") ? string.Format("[{0}]:{1}", httpsHost, httpsPort) : string.Format("{0}:{1}", httpsHost, httpsPort);
         }
 
         private static void setUpstreamProxyHandler(Fiddler.Session requestingSession)
